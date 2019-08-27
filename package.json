@@ -1,0 +1,32 @@
+{
+  "name": "docxvalidator",
+  "version": "1.0.0",
+  "description": "Validate a .docx file.",
+  "main": "CLI.js",
+  "bin": {
+    "docxvalidator": "CLI.js"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "javascript",
+    "xml",
+    "docx",
+    "validation",
+    "dom",
+    "xpath"
+  ],
+  "author": "Ryel Oliver <rmuchunku@gmail.com> (https://github.com/RyelOliver)",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^6.1.0",
+    "jest": "^24.8.0"
+  },
+  "dependencies": {
+    "jszip": "^3.2.2",
+    "xmldom": "^0.1.27"
+  }
+}
