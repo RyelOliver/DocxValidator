@@ -165,18 +165,28 @@ async function validateDocument (zip) {
         // as well as children unless they are within w:rPr
         // const trackedChanges = within(body).getAll('//(w:ins|w:del)');
 
+        let commentsXml;
         const commentRangeStarts = within(body).getAll('//w:commentRangeStart');
+        if (commentRangeStarts.length > 0) {
+            const xml = await zip.read('word/comments.xml');
+            commentsXml = XML.parse(XML.format(xml));
+        }
+
         commentRangeStarts.forEach(commentRangeStart => {
             const { lineNumber, columnNumber } = commentRangeStart;
             const id = commentRangeStart.getAttribute('w:id');
 
-            const commentRangeEnd = within(body).get(`//w:commentRangeEnd[w:id="${id}"]`);
+            const commentRangeEnd = within(body).get(`//w:commentRangeEnd[@w:id="${id}"]`);
             if (!commentRangeEnd)
                 errors.push(ValidationError({ description: `<w:commentRangeStart w:id="${id}"/> has no corresponding <w:commentRangeEnd w:id="${id}"/>.`, fileName, lineNumber, columnNumber }));
 
-            const commentRangeReference = within(body).get(`//w:commentReference[w:id="${id}"]`);
+            const commentRangeReference = within(body).get(`//w:commentReference[@w:id="${id}"]`);
             if (!commentRangeReference)
                 errors.push(ValidationError({ description: `<w:commentRangeStart w:id="${id}"/> has no corresponding <w:commentRangeReference w:id="${id}"/>.`, fileName, lineNumber, columnNumber }));
+
+            const comment = within(document).get('/w:comment[@w:id="${id}"]');
+            if (!comment)
+                errors.push(ValidationError({ description: `<w:comment w:id="${id}"/> has been referenced but is missing.`, fileName, lineNumber, columnNumber }));
         });
     }
 
