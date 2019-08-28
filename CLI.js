@@ -1,12 +1,12 @@
 #! /usr/bin/env node
 
-const fs = require('fs').promises;
+const fs = require('fs');
 const DocxValidator = require('./DocxValidator');
 
 const args = process.argv.slice(2);
 
 async function validate (filePath) {
-    const file = await fs.readFile(filePath);
+    const file = fs.readFileSync(filePath);
 
     const fileExtension = filePath.substring(filePath.lastIndexOf('.'));
     if (fileExtension.toLowerCase() !== '.docx')

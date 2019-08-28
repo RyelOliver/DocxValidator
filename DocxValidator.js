@@ -260,7 +260,7 @@ async function validate (file) {
         validateWordRelationships(zip),
     ]);
 
-    return errors.flat();
+    return errors.reduce((errors, error) => errors.concat(error), []);
 }
 
 function log ({ severity, description, fileName, lineNumber, columnNumber }) {
