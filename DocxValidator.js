@@ -161,7 +161,8 @@ async function validateDocument (zip) {
         // includes w:ins, w:del, w:comment, w:bookmark
         // const comments = within(body).getAll('//(w:ins|w:del|w:comment|w:bookmark)');
 
-        // TODO: check that all w:ins and w:del nodes have children, authors, dates and rsids
+        // TODO: check that all w:ins and w:del nodes have authors, dates and rsids
+        // as well as children unless they are within w:rPr
         // const trackedChanges = within(body).getAll('//(w:ins|w:del)');
 
         const commentRangeStarts = within(body).getAll('//w:commentRangeStart');
@@ -169,13 +170,68 @@ async function validateDocument (zip) {
             const { lineNumber, columnNumber } = commentRangeStart;
             const id = commentRangeStart.getAttribute('w:id');
 
-            const commentRangeEnd = within(body).get(`//w:commentRangeEnd[w:id="${id}"`);
+            const commentRangeEnd = within(body).get(`//w:commentRangeEnd[w:id="${id}"]`);
             if (!commentRangeEnd)
                 errors.push(ValidationError({ description: `<w:commentRangeStart w:id="${id}"/> has no corresponding <w:commentRangeEnd w:id="${id}"/>.`, fileName, lineNumber, columnNumber }));
 
-            const commentRangeReference = within(body).get(`//w:commentReference[w:id="${id}"`);
+            const commentRangeReference = within(body).get(`//w:commentReference[w:id="${id}"]`);
             if (!commentRangeReference)
                 errors.push(ValidationError({ description: `<w:commentRangeStart w:id="${id}"/> has no corresponding <w:commentRangeReference w:id="${id}"/>.`, fileName, lineNumber, columnNumber }));
+        });
+    }
+
+    return errors;
+}
+
+async function validateRelationships (zip) {
+    const errors = [];
+
+    const fileName = zip.files.find(fileName => fileName === '_rels/.rels');
+
+    if (!fileName) {
+        errors.push(ValidationError({ description: '_rels/.rels is required.', fileName: '_rels/.rels' }));
+    } else {
+        const xml = await zip.read(fileName);
+        const document = XML.parse(XML.format(xml));
+
+        const relationships = within(document).getAll('/Relationships/Relationship');
+
+        const relIds = [];
+        relationships.forEach(relationship => {
+            const { lineNumber, columnNumber } = relationship;
+            const Id = relationship.getAttribute('Id');
+            if (!Id.match(/^rId[\d]+$/))
+                errors.push(ValidationError({ description: `<Relationship Id="${Id}"/> is invalid.`, fileName, lineNumber, columnNumber }));
+            if (relIds.includes(Id))
+                errors.push(ValidationError({ description: `<Relationship Id="${Id}"/> is not unique.`, fileName, lineNumber, columnNumber }));
+            relIds.push(Id);
+        });
+    }
+
+    return errors;
+}
+
+async function validateWordRelationships (zip) {
+    const errors = [];
+
+    const fileName = zip.files
+        .find(fileName => [ 'word/_rels/document.xml.rels', 'word/_rels/document22.xml.rels' ].includes(fileName));
+
+    if (!fileName) {
+        errors.push(ValidationError({ description: 'word/_rels/document.xml.rels is required.', fileName: 'word/_rels/document.xml.rels' }));
+    } else {
+        const xml = await zip.read(fileName);
+        const document = XML.parse(XML.format(xml));
+
+        const relationships = within(document).getAll('/Relationships/Relationship');
+
+        const relIds = [];
+        relationships.forEach(relationship => {
+            const { lineNumber, columnNumber } = relationship;
+            const Id = relationship.getAttribute('Id');
+            if (relIds.includes(Id))
+                errors.push(ValidationError({ description: `<Relationship Id="${Id}"/> is not unique.`, fileName, lineNumber, columnNumber }));
+            relIds.push(Id);
         });
     }
 
@@ -190,6 +246,8 @@ async function validate (file) {
         validateDocProps(zip),
         validateSettings(zip),
         validateDocument(zip),
+        validateRelationships(zip),
+        validateWordRelationships(zip),
     ]);
 
     return errors.flat();
