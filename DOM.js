@@ -58,6 +58,10 @@ function splitIntoSelectors (xPath) {
 }
 
 function parseSelector (selector) {
+    const attributeName = selector.match(/^\/@(.+)$/);
+    if (attributeName)
+        return { attributeName: [ attributeName[1] ] };
+
     const direct = !!selector.match(/^\/[^/]+/);
     selector = direct ?
         selector.match(/^\/(.*)/)[1] :
@@ -70,9 +74,11 @@ function parseSelector (selector) {
     }
 
     return {
-        nodeName: [ selector ],
-        direct,
-        predicates,
+        childNode: {
+            nodeName: [ selector ],
+            direct,
+            predicates,
+        },
     };
 }
 
@@ -81,49 +87,59 @@ function parse (xPath) {
         .map(parseSelector);
 }
 
-function select ({ nodeName, direct, predicates }) {
+function select ({ attributeName = [], childNode: { nodeName, direct, predicates } }) {
     return {
         from: function (nodes) {
             const any = !!nodeName.find(nodeName => nodeName === '*');
 
-            if (direct) {
-                nodes = nodes.reduce((nodes, node) => {
-                    return nodes.concat(Array.from(node.childNodes));
-                }, []);
-                if (!any)
-                    nodes = nodes.filter(node => nodeName.includes(node.nodeName));
-            } else {
-                nodes = nodes.reduce((nodes, node) => {
-                    return nodes.concat(
-                        Array.from(node.getElementsByTagName(any || nodeName.length > 1 ? '*' : nodeName[0]))
-                    );
-                }, []);
-                if (!any && nodeName.length > 1)
-                    nodes = nodes.filter(node => nodeName.includes(node.nodeName));
-            }
+            if (attributeName.length > 0) {
+                nodes = nodes.map(node => {
+                    const values = attributeName.reduce((values, name) => {
+                        return values.concat(node.getAttribute(name));
+                    }, []);
 
-            nodes = nodes.filter(node => !IGNORE_NODE.includes(node.nodeName));
-
-            predicates.forEach(predicate => {
-                nodes = nodes.filter((node, index) => {
-                    if (predicate.order)
-                        return predicate.order === index + 1;
-
-                    if (predicate.attribute) {
-                        if (isNil(predicate.attribute.value)) {
-                            return node.getAttribute(predicate.attribute.name);
-                        }
-                        return node.getAttribute(predicate.attribute.name) === predicate.attribute.value;
-                    }
-
-                    if (predicate.nodeName) {
-                        const children = select(predicate).from([ node ]);
-                        return children.length > 0;
-                    }
-
-                    return false;
+                    return values.length === 1 ? values[0] :  values;
                 });
-            });
+            } else {
+                if (direct) {
+                    nodes = nodes.reduce((nodes, node) => {
+                        return nodes.concat(Array.from(node.childNodes));
+                    }, []);
+                    if (!any)
+                        nodes = nodes.filter(node => nodeName.includes(node.nodeName));
+                } else {
+                    nodes = nodes.reduce((nodes, node) => {
+                        return nodes.concat(
+                            Array.from(node.getElementsByTagName(any || nodeName.length > 1 ? '*' : nodeName[0]))
+                        );
+                    }, []);
+                    if (!any && nodeName.length > 1)
+                        nodes = nodes.filter(node => nodeName.includes(node.nodeName));
+                }
+
+                nodes = nodes.filter(node => !IGNORE_NODE.includes(node.nodeName));
+
+                predicates.forEach(predicate => {
+                    nodes = nodes.filter((node, index) => {
+                        if (predicate.order)
+                            return predicate.order === index + 1;
+
+                        if (predicate.attribute) {
+                            if (isNil(predicate.attribute.value)) {
+                                return node.getAttribute(predicate.attribute.name);
+                            }
+                            return node.getAttribute(predicate.attribute.name) === predicate.attribute.value;
+                        }
+
+                        if (predicate.childNode) {
+                            const children = select(predicate).from([ node ]);
+                            return children.length > 0;
+                        }
+
+                        return false;
+                    });
+                });
+            }
 
             return nodes;
         },

@@ -14,52 +14,112 @@ describe('Parse', () => {
     it('Should parse a child selector', () => {
         const actual = xPath.parse('//w:rsid');
         expect(actual).toEqual([
-            { nodeName: [ 'w:rsid' ], direct: false, predicates: [] },
+            {
+                childNode: {
+                    nodeName: [ 'w:rsid' ],
+                    direct: false,
+                    predicates: [],
+                },
+            },
         ]);
     });
 
     it('Should parse a direct child selector', () => {
         const actual = xPath.parse('/w:settings/w:rsids');
         expect(actual).toEqual([
-            { nodeName: [ 'w:settings' ], direct: true, predicates: [] },
-            { nodeName: [ 'w:rsids' ], direct: true, predicates: [] },
+            {
+                childNode: {
+                    nodeName: [ 'w:settings' ],
+                    direct: true,
+                    predicates: [],
+                },
+            },
+            {
+                childNode: {
+                    nodeName: [ 'w:rsids' ],
+                    direct: true,
+                    predicates: [],
+                },
+            },
         ]);
     });
 
     it('Should parse multiple child selectors', () => {
         const actual = xPath.parse('//w:shapeDefaults//o:idmap');
         expect(actual).toEqual([
-            { nodeName: [ 'w:shapeDefaults' ], direct: false, predicates: [] },
-            { nodeName: [ 'o:idmap' ], direct: false, predicates: [] },
+            {
+                childNode: {
+                    nodeName: [ 'w:shapeDefaults' ],
+                    direct: false,
+                    predicates: [],
+                },
+            },
+            {
+                childNode: {
+                    nodeName: [ 'o:idmap' ],
+                    direct: false,
+                    predicates: [],
+                },
+            },
         ]);
     });
 
     it('Should parse wildcard selectors', () => {
         const actual = xPath.parse('/w:settings/*');
         expect(actual).toEqual([
-            { nodeName: [ 'w:settings' ], direct: true, predicates: [] },
-            { nodeName: [ '*' ], direct: true, predicates: [] },
+            {
+                childNode: {
+                    nodeName: [ 'w:settings' ],
+                    direct: true,
+                    predicates: [],
+                },
+            },
+            {
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: true,
+                    predicates: [],
+                },
+            },
         ]);
     });
 
     it('Should parse an order predicate', () => {
         const actual = xPath.parse('//*[10]');
         expect(actual).toEqual([
-            { nodeName: [ '*' ], direct: false, predicates: [ { order: 10 } ] },
+            {
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: false,
+                    predicates: [ { order: 10 } ],
+                },
+            },
         ]);
     });
 
     it('Should parse a node with an attribute', () => {
         const actual = xPath.parse('//*[@spidmax]');
         expect(actual).toEqual([
-            { nodeName: [ '*' ], direct: false, predicates: [ { attribute: { name: 'spidmax' } } ] },
+            {
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: false,
+                    predicates: [ { attribute: { name: 'spidmax' } } ],
+                },
+            },
         ]);
     });
 
     it('Should parse a node with an attribute value', () => {
         const actual = xPath.parse('//*[@w:val=","]');
         expect(actual).toEqual([
-            { nodeName: [ '*' ], direct: false, predicates: [ { attribute: { name: 'w:val', value: ',' } } ] },
+            {
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: false,
+                    predicates: [ { attribute: { name: 'w:val', value: ',' } } ],
+                },
+            },
         ]);
     });
 
@@ -67,12 +127,14 @@ describe('Parse', () => {
         const actual = xPath.parse('//*[@v:ext="edit"][@data="1"]');
         expect(actual).toEqual([
             {
-                nodeName: [ '*' ],
-                direct: false,
-                predicates: [
-                    { attribute: { name: 'v:ext', value: 'edit' } },
-                    { attribute: { name: 'data', value: '1' } },
-                ],
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: false,
+                    predicates: [
+                        { attribute: { name: 'v:ext', value: 'edit' } },
+                        { attribute: { name: 'data', value: '1' } },
+                    ],
+                },
             },
         ]);
     });
@@ -81,11 +143,28 @@ describe('Parse', () => {
         const actual = xPath.parse('//*[/o:idmap]');
         expect(actual).toEqual([
             {
-                nodeName: [ '*' ],
-                direct: false,
-                predicates: [
-                    { nodeName: [ 'o:idmap' ], direct: true, predicates: [] },
-                ],
+                childNode: {
+                    nodeName: [ '*' ],
+                    direct: false,
+                    predicates: [
+                        {
+                            childNode: {
+                                nodeName: [ 'o:idmap' ],
+                                direct: true,
+                                predicates: [],
+                            },
+                        },
+                    ],
+                },
+            },
+        ]);
+    });
+
+    it('Should parse an attribute', () => {
+        const actual = xPath.parse('/@w:val');
+        expect(actual).toEqual([
+            {
+                attributeName: [ 'w:val' ],
             },
         ]);
     });
