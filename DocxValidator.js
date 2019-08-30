@@ -7,10 +7,49 @@ const ERROR = 'Error';
 const WARNING = 'Warning';
 const INFO = 'Information';
 
+const DEFAULT_NS = [
+    'xml',
+    'xmlns',
+];
+
+let _verbose = false;
+
 function ValidationError ({ severity = ERROR, description, fileName, lineNumber, columnNumber }) {
     if (!description)
         throw Error('A description is required for a validation error.');
     return { severity, description, fileName, lineNumber, columnNumber };
+}
+
+async function validateXml (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating XML...' });
+
+    const errors = [];
+
+    const files = zip.files
+        .filter(fileName => fileName.match(/(\.xml|\.rels)$/))
+        .map(async fileName => {
+            const xml = await zip.read(fileName);
+            return [ fileName, XML.parse(XML.format(xml)) ];
+        });
+
+    const documents = await Promise.all(files);
+
+    documents.forEach(([ fileName, document ]) => {
+        within(document).getAll('//*')
+            .forEach(node => {
+                Array.from(node.attributes)
+                    .map(({ name, value, lineNumber, columnNumber }) => ({ name, value, lineNumber, columnNumber }))
+                    .filter(({ name }) => name.indexOf(':') >= 0)
+                    .forEach(({ name, lineNumber, columnNumber }) => {
+                        const nameSpace = name.split(':')[0];
+                        if (!DEFAULT_NS.includes(nameSpace) && !node.lookupNamespaceURI(nameSpace))
+                            errors.push(ValidationError({ description: `"${nameSpace}" is an undeclared prefix.`, fileName, lineNumber, columnNumber }));
+                    });
+            });
+    });
+
+    return errors;
 }
 
 async function validateContentTypes (zip) {
@@ -276,6 +315,7 @@ async function validate (file, { verbose }) {
     const zip = await Zip.unzip(file);
 
     const errors = await Promise.all([
+        validateXml(zip),
         validateContentTypes(zip),
         validateDocProps(zip),
         validateSettings(zip),
@@ -316,7 +356,7 @@ function log ({ severity, description, fileName, lineNumber, columnNumber }) {
     }
 
     if (severity !== INFO)
-    output(style, `${severity}${location}`);
+        output(style, `${severity}${location}`);
 
     output(style, description);
 }
