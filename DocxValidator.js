@@ -5,6 +5,7 @@ const { within } = require('./DOM');
 
 const ERROR = 'Error';
 const WARNING = 'Warning';
+const INFO = 'Information';
 
 function ValidationError ({ severity = ERROR, description, fileName, lineNumber, columnNumber }) {
     if (!description)
@@ -13,6 +14,9 @@ function ValidationError ({ severity = ERROR, description, fileName, lineNumber,
 }
 
 async function validateContentTypes (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating [Content_Types].xml...' });
+
     const errors = [];
     const fileName = '[Content_Types].xml';
 
@@ -39,6 +43,9 @@ async function validateContentTypes (zip) {
 }
 
 async function validateDocProps (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating docProps...' });
+
     const errors = [];
 
     const docProps = [
@@ -87,6 +94,9 @@ async function validateDocProps (zip) {
 }
 
 async function validateSettings (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating word/settings.xml...' });
+
     const errors = [];
 
     const fileName = zip.files.find(fileName => fileName === 'word/settings.xml');
@@ -131,6 +141,9 @@ async function validateSettings (zip) {
 }
 
 async function validateDocument (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating document...' });
+
     const errors = [];
 
     const fileName = zip.files
@@ -194,6 +207,9 @@ async function validateDocument (zip) {
 }
 
 async function validateRelationships (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating relationships...' });
+
     const errors = [];
 
     const fileName = zip.files.find(fileName => fileName === '_rels/.rels');
@@ -222,6 +238,9 @@ async function validateRelationships (zip) {
 }
 
 async function validateWordRelationships (zip) {
+    if (_verbose)
+        log({ severity: INFO, description: 'Validating document relationships...' });
+
     const errors = [];
 
     const fileName = zip.files
@@ -248,7 +267,12 @@ async function validateWordRelationships (zip) {
     return errors;
 }
 
-async function validate (file) {
+async function validate (file, { verbose }) {
+    _verbose = verbose;
+
+    if (_verbose)
+        log({ severity: INFO, description: 'Unzipping file...' });
+
     const zip = await Zip.unzip(file);
 
     const errors = await Promise.all([
@@ -267,6 +291,10 @@ function log ({ severity, description, fileName, lineNumber, columnNumber }) {
     let output;
     let style;
     switch (severity) {
+        case INFO:
+            output = console.info;
+            style = '';
+            break;
         case WARNING:
             output = console.warn;
             style = '\x1b[33m%s\x1b[0m';
@@ -287,7 +315,9 @@ function log ({ severity, description, fileName, lineNumber, columnNumber }) {
         }
     }
 
+    if (severity !== INFO)
     output(style, `${severity}${location}`);
+
     output(style, description);
 }
 

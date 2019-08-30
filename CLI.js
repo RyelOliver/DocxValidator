@@ -5,23 +5,35 @@ const DocxValidator = require('./DocxValidator');
 
 const args = process.argv.slice(2);
 
-async function validate (filePath) {
+async function validate (filePath, { verbose }) {
     const file = fs.readFileSync(filePath);
 
     const fileExtension = filePath.substring(filePath.lastIndexOf('.'));
     if (fileExtension.toLowerCase() !== '.docx')
         return console.error(`${filePath} is not a .docx.`);
 
-    const errors = await DocxValidator.validate(file);
+    const errors = await DocxValidator.validate(file, { verbose });
     errors.forEach(DocxValidator.log);
 }
 
-const filePath = args[0];
-
-if (!filePath)
+if (args.length === 0)
     return console.error('A path to the file to validate must be provided.');
 
-validate(filePath)
+let filePath,
+    verbose;
+
+if (args.length === 1) {
+    filePath = args[0];
+} else {
+    filePath = args[0];
+    const VERBOSE = [
+        '-v',
+        '--verbose',
+    ];
+    verbose = !!args.find(arg => VERBOSE.includes(arg));
+}
+
+validate(filePath, { verbose })
     .catch(error => {
         switch (error.code) {
             case 'ENOENT':
