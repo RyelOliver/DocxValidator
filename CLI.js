@@ -18,6 +18,9 @@ async function validate (filePath) {
 
 const filePath = args[0];
 
+if (!filePath)
+    return console.error('A path to the file to validate must be provided.');
+
 validate(filePath)
     .catch(error => {
         switch (error.code) {
