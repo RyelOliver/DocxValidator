@@ -184,7 +184,7 @@ async function validateDocument (zip) {
             if (!commentRangeReference)
                 errors.push(ValidationError({ description: `<w:commentRangeStart w:id="${id}"/> has no corresponding <w:commentRangeReference w:id="${id}"/>.`, fileName, lineNumber, columnNumber }));
 
-            const comment = within(document).get('/w:comment[@w:id="${id}"]');
+            const comment = within(commentsXml).get(`//w:comment[@w:id="${id}"]`);
             if (!comment)
                 errors.push(ValidationError({ description: `<w:comment w:id="${id}"/> has been referenced but is missing.`, fileName, lineNumber, columnNumber }));
         });
