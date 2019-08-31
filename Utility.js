@@ -1,6 +1,8 @@
+const BOLD = '\x1b[1m%s\x1b[0m';
 const RED = '\x1b[31m%s\x1b[0m';
 const GREEN = '\x1b[32m%s\x1b[0m';
 const YELLOW = '\x1b[33m%s\x1b[0m';
+const TEAL = '\x1b[36m%s\x1b[0m';
 
 const INFO = 'info';
 const WARN = 'warn';
@@ -17,9 +19,11 @@ print.TYPE = {
     ERROR,
 };
 print.STYLE = {
+    BOLD,
     RED,
     GREEN,
     YELLOW,
+    TEAL,
 };
 
 function isNil (value) {

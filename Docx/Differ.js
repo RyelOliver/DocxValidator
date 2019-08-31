@@ -16,39 +16,153 @@ const Type = {
 };
 
 const outputChanges = changes => {
-    changes.forEach(change => {
-        let type, style;
-        if (change.insert) {
-            type = 'insert';
-            style = STYLE.GREEN;
-        } else if (change.delete) {
-            type = 'delete';
-            style = STYLE.RED;
-        } else {
-            type = 'modified';
-            style = STYLE.YELLOW;
-        }
+    const output = changes
+        .reduce((groupedByFilePath, change) => {
+            const grouped = groupedByFilePath.find(grouped => {
+                return grouped.filePath === change.filePath;
+            });
 
-        let description;
-        if (change.type === Type.directory) {
-            const action = type === Type.insert ?
-                'added' :
-                type === Type.delete ?
-                    'removed' :
-                    'modified';
-            description = `The ${change.filePath} file was ${action}`;
-        } else {
-            print(change.line, { style });
-            const action = type === Type.insert ?
-                'added to' :
-                type === Type.delete ?
-                    'removed from' :
-                    'modified';
-            description =
-            `Was ${action} ${change.filePath} at line ${change.lineNumber}`;
-        }
+            if (grouped) {
+                grouped.changes.push(change);
+            } else {
+                groupedByFilePath.push({
+                    filePath: change.filePath,
+                    changes: [ change ],
+                });
+            }
 
-        print(description, { style });
+            return groupedByFilePath;
+        }, [])
+        .map(({ filePath, changes }) => {
+            const chunks = changes
+                .filter(({ type }) => type === Type.file)
+                .reduce((chunks, change) => {
+                    const chunk = chunks.find(chunk => {
+                        return chunk.lineNumber === change.lineNumber;
+                    });
+
+                    if (chunk) {
+                        if (change.insert) {
+                            chunk.insertedLines.push(change.line);
+                        } else {
+                            chunk.deletedLines.push(change.line);
+                        }
+                    } else {
+                        const insertedLines = [];
+                        const deletedLines = [];
+                        if (change.insert) {
+                            insertedLines.push(change.line);
+                        } else {
+                            deletedLines.push(change.line);
+                        }
+
+                        chunks.push({
+                            filePath,
+                            insertedLines,
+                            deletedLines,
+                            lineNumber: change.lineNumber,
+                        });
+                    }
+
+                    return chunks;
+                }, []);
+
+            if (chunks.length === 0) {
+                if (changes.some(change => change.insert)) {
+                    return {
+                        filePath,
+                        insert: true,
+                        chunks,
+                    };
+                } else if (changes.some(change => change.delete)) {
+                    return {
+                        filePath,
+                        delete: true,
+                        chunks,
+                    };
+                } else {
+                    return {
+                        filePath,
+                        chunks,
+                    };
+                }
+            } else {
+                return {
+                    filePath,
+                    chunks,
+                };
+            }
+        }, [])
+        .reduce((summary, groupedChanges) => {
+            const insertCount = groupedChanges.chunks.reduce((insertCount, chunk) => {
+                return insertCount + chunk.insertedLines.length;
+            }, 0);
+            const deleteCount = groupedChanges.chunks.reduce((deleteCount, chunk) => {
+                return deleteCount + chunk.deletedLines.length;
+            }, 0);
+
+            let diffString, style;
+            if (insertCount + deleteCount === 0) {
+                if (groupedChanges.insert) {
+                    diffString = 'added';
+                    style = STYLE.GREEN;
+                } else if (groupedChanges.delete) {
+                    diffString = 'removed';
+                    style = STYLE.RED;
+                } else {
+                    diffString = 'modified';
+                    style = STYLE.YELLOW;
+                }
+            } else {
+                diffString = `+${insertCount}/-${deleteCount}`;
+            }
+            const filePathString = `${diffString}${' '.repeat(16 - diffString.length)}${groupedChanges.filePath}`;
+            const output = { filePath: groupedChanges.filePath, message: filePathString, style };
+
+            if (!summary.filePaths) {
+                summary.filePaths = [ output ];
+            } else {
+                const filePath = summary.filePaths.find(filePath => filePath === groupedChanges.filePath);
+                if (!filePath) {
+                    summary.filePaths.push(output);
+                }
+            }
+
+            if (!summary.chunks) {
+                summary.chunks = [ ...groupedChanges.chunks ];
+            } else {
+                summary.chunks.push(...groupedChanges.chunks);
+            }
+
+            return summary;
+        }, {});
+
+    print('');
+    print('diff            path', { style: STYLE.BOLD });
+    output.filePaths.forEach(({ message, style }) => {
+        print(message, { style });
+    });
+    print('');
+
+    output.chunks.forEach(chunk => {
+        const chunkCount = [
+            '@@',
+            `-${chunk.lineNumber}${chunk.deletedLines.length === 1 ? '' : `,${chunk.deletedLines.length}`}`,
+            `+${chunk.lineNumber}${chunk.insertedLines.length === 1 ? '' : `,${chunk.insertedLines.length}`}`,
+            '@@',
+        ].join(' ');
+
+        print(`--- ${chunk.filePath}`, { style: STYLE.BOLD });
+        print(`+++ ${chunk.filePath}`, { style: STYLE.BOLD });
+        print(chunkCount, { style: STYLE.TEAL });
+
+        chunk.deletedLines.forEach(line => {
+            print(`-${line}`, { style: STYLE.RED });
+        });
+        chunk.insertedLines.forEach(line => {
+            print(`+${line}`, { style: STYLE.GREEN });
+        });
+        print('');
     });
 };
 
