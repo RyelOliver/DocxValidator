@@ -12,5 +12,7 @@ Use `npm i -g .` to install the package globally so that the CLI can be used.
 ## CLI
 
 `docx debug /home/user/Documents/File.docx`
+
 `docx validate /home/user/Documents/File.docx`
+
 `docx diff /home/user/Documents/Old.docx /home/user/Documents/New.docx`
