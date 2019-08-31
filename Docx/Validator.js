@@ -1,11 +1,8 @@
-const { isNil, hasLeadingOrTrailingWhiteSpace } = require('../Utility');
+const { print, isNil, hasLeadingOrTrailingWhiteSpace } = require('../Utility');
+const { TYPE, STYLE } = print;
 const Zip = require('../Zip');
 const XML = require('../XML');
 const { within } = require('../DOM');
-
-const ERROR = 'Error';
-const WARNING = 'Warning';
-const INFO = 'Information';
 
 const DEFAULT_NS = [
     'xml',
@@ -14,15 +11,15 @@ const DEFAULT_NS = [
 
 let _verbose = false;
 
-function ValidationError ({ severity = ERROR, description, fileName, lineNumber, columnNumber }) {
+function ValidationError ({ type = TYPE.ERROR, description, fileName, lineNumber, columnNumber }) {
     if (!description)
         throw Error('A description is required for a validation error.');
-    return { severity, description, fileName, lineNumber, columnNumber };
+    return { type, description, fileName, lineNumber, columnNumber };
 }
 
 async function validateXml (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating XML...' });
+        log({ type: TYPE.INFO, description: 'Validating XML...' });
 
     const errors = [];
 
@@ -54,7 +51,7 @@ async function validateXml (zip) {
 
 async function validateContentTypes (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating [Content_Types].xml...' });
+        log({ type: TYPE.INFO, description: 'Validating [Content_Types].xml...' });
 
     const errors = [];
     const fileName = '[Content_Types].xml';
@@ -83,7 +80,7 @@ async function validateContentTypes (zip) {
 
 async function validateDocProps (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating docProps...' });
+        log({ type: TYPE.INFO, description: 'Validating docProps...' });
 
     const errors = [];
 
@@ -107,7 +104,7 @@ async function validateDocProps (zip) {
                 ].forEach(property => {
                     const title = within(document).get(`/coreProperties/${property}`);
                     if (!title)
-                        errors.push(ValidationError({ severity: WARNING, description: `<${property}/> is missing.`, fileName }));
+                        errors.push(ValidationError({ type: TYPE.WARNING, description: `<${property}/> is missing.`, fileName }));
                 });
             } else if (fileName === 'docProps/custom.xml') {
                 const properties = within(document).getAll('/Properties/property');
@@ -134,7 +131,7 @@ async function validateDocProps (zip) {
 
 async function validateSettings (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating word/settings.xml...' });
+        log({ type: TYPE.INFO, description: 'Validating word/settings.xml...' });
 
     const errors = [];
 
@@ -181,7 +178,7 @@ async function validateSettings (zip) {
 
 async function validateDocument (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating document...' });
+        log({ type: TYPE.INFO, description: 'Validating document...' });
 
     const errors = [];
 
@@ -202,10 +199,10 @@ async function validateDocument (zip) {
 
             if (hasLeadingOrTrailingWhiteSpace(text.textContent)) {
                 if (space !== 'preserve')
-                    errors.push(ValidationError({ severity: WARNING, description: `<${text.nodeName}/> should preserve white space with xml:space="preserve".`, fileName, lineNumber, columnNumber }));
+                    errors.push(ValidationError({ type: TYPE.WARNING, description: `<${text.nodeName}/> should preserve white space with xml:space="preserve".`, fileName, lineNumber, columnNumber }));
             } else {
                 if (space === 'preserve')
-                    errors.push(ValidationError({ severity: WARNING, description: `<${text.nodeName}/> has no white space to preserve with xml:space="preserve".`, fileName, lineNumber, columnNumber }));
+                    errors.push(ValidationError({ type: TYPE.WARNING, description: `<${text.nodeName}/> has no white space to preserve with xml:space="preserve".`, fileName, lineNumber, columnNumber }));
             }
         });
 
@@ -247,7 +244,7 @@ async function validateDocument (zip) {
 
 async function validateRelationships (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating relationships...' });
+        log({ type: TYPE.INFO, description: 'Validating relationships...' });
 
     const errors = [];
 
@@ -278,7 +275,7 @@ async function validateRelationships (zip) {
 
 async function validateWordRelationships (zip) {
     if (_verbose)
-        log({ severity: INFO, description: 'Validating document relationships...' });
+        log({ type: TYPE.INFO, description: 'Validating document relationships...' });
 
     const errors = [];
 
@@ -310,7 +307,7 @@ async function validate (file, { verbose } = {}) {
     _verbose = verbose;
 
     if (_verbose)
-        log({ severity: INFO, description: 'Unzipping file...' });
+        log({ type: TYPE.INFO, description: 'Unzipping file...' });
 
     const zip = await Zip.unzip(file);
 
@@ -327,21 +324,20 @@ async function validate (file, { verbose } = {}) {
     return errors.reduce((errors, error) => errors.concat(error), []);
 }
 
-function log ({ severity, description, fileName, lineNumber, columnNumber }) {
-    let output;
+function log ({ type, description, fileName, lineNumber, columnNumber }) {
+    let severity;
     let style;
-    switch (severity) {
-        case INFO:
-            output = console.info;
-            style = '';
+    switch (type) {
+        case TYPE.INFO:
+            severity = 'Information';
             break;
-        case WARNING:
-            output = console.warn;
-            style = '\x1b[33m%s\x1b[0m';
+        case TYPE.WARN:
+            severity = 'Warning';
+            style = STYLE.YELLOW;
             break;
         default:
-            output = console.error;
-            style = '\x1b[31m%s\x1b[0m';
+            severity = 'Error';
+            style = STYLE.RED;
             break;
     }
 
@@ -355,10 +351,10 @@ function log ({ severity, description, fileName, lineNumber, columnNumber }) {
         }
     }
 
-    if (severity !== INFO)
-        output(style, `${severity}${location}`);
+    if (type !== TYPE.INFO)
+        print(`${severity}${location}`, { type, style });
 
-    output(style, description);
+    print(description, { type, style });
 }
 
 const DocxValidator = {

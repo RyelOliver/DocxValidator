@@ -1,3 +1,5 @@
+const { print } = require('../Utility');
+const { STYLE } = print;
 const Zip = require('../Zip');
 const XML = require('../XML');
 const Diff = require('../Diff');
@@ -7,33 +9,24 @@ const Type = {
     file: 'file',
 
     json: 'json',
-    console: 'console',
+    print: 'print',
 
     delete: 'delete',
     insert: 'insert',
 };
 
-const Log = (...args) => {
-    return console.log(...args);
-};
-Log.delete = (...args) => {
-    return Log('\x1b[31m%s\x1b[0m', ...args);
-};
-Log.insert = (...args) => {
-    return Log('\x1b[32m%s\x1b[0m', ...args);
-};
-Log.modified = (...args) => {
-    return Log('\x1b[33m%s\x1b[0m', ...args);
-};
-Log.changes = changes => {
+const outputChanges = changes => {
     changes.forEach(change => {
-        let type;
+        let type, style;
         if (change.insert) {
             type = 'insert';
+            style = STYLE.GREEN;
         } else if (change.delete) {
             type = 'delete';
+            style = STYLE.RED;
         } else {
             type = 'modified';
+            style = STYLE.YELLOW;
         }
 
         let description;
@@ -45,7 +38,7 @@ Log.changes = changes => {
                     'modified';
             description = `The ${change.filePath} file was ${action}`;
         } else {
-            Log[type](change.line);
+            print(change.line, { style });
             const action = type === Type.insert ?
                 'added to' :
                 type === Type.delete ?
@@ -55,7 +48,7 @@ Log.changes = changes => {
             `Was ${action} ${change.filePath} at line ${change.lineNumber}`;
         }
 
-        Log[type](description);
+        print(description, { style });
     });
 };
 
@@ -108,9 +101,9 @@ const getFileContentChanges = async ({ oldZip, newZip, filePaths }) => {
     return changes;
 };
 
-const diff = async (oldFile, newFile, { type = Type.file, output = Type.console } = {}) => {
+const diff = async (oldFile, newFile, { type = Type.file, output = Type.print } = {}) => {
     if (!Buffer.compare(oldFile, newFile))
-        return Log('The two .docx files are identical.');
+        return print('The two .docx files are identical.');
 
     const [ oldZip, newZip ] = await Promise.all(
         [ oldFile, newFile ]
@@ -143,7 +136,7 @@ const diff = async (oldFile, newFile, { type = Type.file, output = Type.console 
         case Type.json:
             return changes;
         default:
-            return Log.changes(changes);
+            return outputChanges(changes);
     }
 };
 

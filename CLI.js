@@ -1,6 +1,8 @@
 #! /usr/bin/env node
 
 const fs = require('fs');
+const { print } = require('./Utility');
+const { TYPE: { ERROR } } = print;
 const ml = require('./Multiline');
 // const Formatter = require('./Docx/Formatter');
 const Validator = require('./Docx/Validator');
@@ -20,19 +22,19 @@ const ACTION = {
 const args = process.argv.slice(2);
 
 if (args.length === 0)
-    return console.error(`One of the following .docx actions must be provided:\n${Object.values(ACTION).map(action => `- ${action}`).join('\n')}`);
+    return print(`One of the following .docx actions must be provided:\n${Object.values(ACTION).map(action => `- ${action}`).join('\n')}`, { type: ERROR });
 
 const isDocx = filePath => {
     if (!fs.existsSync(filePath))
-        return console.error(`${filePath} is not a file or directory.`);
+        return print(`${filePath} is not a file or directory.`, { type: ERROR });
 
     const file = fs.statSync(filePath);
     if (!file.isFile())
-        return console.error(`${filePath} is not a file.`);
+        return print(`${filePath} is not a file.`, { type: ERROR });
 
     const fileExtension = filePath.substring(filePath.lastIndexOf('.'));
     if (fileExtension.toLowerCase() !== '.docx')
-        return console.error(`${filePath} is not a .docx`);
+        return print(`${filePath} is not a .docx`, { type: ERROR });
 
     return true;
 };
@@ -40,16 +42,16 @@ const isDocx = filePath => {
 const action = args.shift();
 switch (action) {
     case ACTION.DEBUG:
-        return console.error(`${action} is an unimplemented .docx action.`);
+        return print(`${action} is an unimplemented .docx action.`, { type: ERROR });
         // Formatter
     case ACTION.VALIDATE: {
         if (args.find(arg => HELP.includes(arg)))
-            return console.error(ml`
+            return print(ml`
                 -v, --verbose   | Providing this argument will log each step of the validation
-            `);
+            `, { type: ERROR });
 
         if (args.length === 0)
-            return console.error('A path to the file to validate must be provided.');
+            return print('A path to the file to validate must be provided.', { type: ERROR });
 
         const filePath = args.shift();
 
@@ -59,7 +61,7 @@ switch (action) {
             if (VERBOSE.includes(arg)) {
                 verbose = true;
             } else {
-                return console.error(`${arg} is an unknown argument.`);
+                return print(`${arg} is an unknown argument.`, { type: ERROR });
             }
         }
 
@@ -68,20 +70,20 @@ switch (action) {
 
         Validator.validate(fs.readFileSync(filePath), { verbose })
             .then(errors => errors.length === 0 ?
-                console.info('No errors found.') :
+                print('No errors found.') :
                 errors.forEach(Validator.log));
         break;
     }
     case ACTION.DIFF: {
         if (args.find(arg => HELP.includes(arg)))
-            return console.error(ml`
+            return print(ml`
                 -t, --type      | Default diff type is 'directory' but may also diff each 'file'
                 -o, --output    | Default output is 'console' but may also be output as 'json'
                 -v, --verbose   | Providing this argument will log each step of the diff
-            `);
+            `, { type: ERROR });
 
         if (args.length < 2)
-            return console.error('Two .docx file paths are required as arguments.');
+            return print('Two .docx file paths are required as arguments.', { type: ERROR });
 
         const oldFilePath = args.shift();
         const newFilePath = args.shift();
@@ -97,7 +99,7 @@ switch (action) {
             } else if (VERBOSE.includes(arg)) {
                 verbose = true;
             } else {
-                return console.error(`${arg} is an unknown argument.`);
+                return print(`${arg} is an unknown argument.`, { type: ERROR });
             }
         }
 
@@ -113,5 +115,5 @@ switch (action) {
         break;
     }
     default:
-        return console.error(`${action} is an unknown .docx action.`);
+        return print(`${action} is an unknown .docx action.`, { type: ERROR });
 }
