@@ -1,7 +1,7 @@
-const { isNil, hasLeadingOrTrailingWhiteSpace } = require('./Utility');
-const Zip = require('./Zip');
-const XML = require('./XML');
-const { within } = require('./DOM');
+const { isNil, hasLeadingOrTrailingWhiteSpace } = require('../Utility');
+const Zip = require('../Zip');
+const XML = require('../XML');
+const { within } = require('../DOM');
 
 const ERROR = 'Error';
 const WARNING = 'Warning';
@@ -306,7 +306,7 @@ async function validateWordRelationships (zip) {
     return errors;
 }
 
-async function validate (file, { verbose }) {
+async function validate (file, { verbose } = {}) {
     _verbose = verbose;
 
     if (_verbose)

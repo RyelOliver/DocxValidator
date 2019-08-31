@@ -1,10 +1,10 @@
 const fs = require('fs').promises;
-const DocxValidator = require('./DocxValidator');
+const Validator = require('./Validator');
 
-describe('DocxValidator', () => {
+describe('Validator', () => {
     it('Should not return any errors', async () => {
         const file = await fs.readFile('./fixtures/File.docx');
-        const errors = await DocxValidator.validate(file);
+        const errors = await Validator.validate(file);
         expect(errors).toEqual([]);
     });
 });
