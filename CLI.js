@@ -1,7 +1,15 @@
 #! /usr/bin/env node
 
 const fs = require('fs');
+const ml = require('./Multiline');
+// const Formatter = require('./Docx/Formatter');
 const Validator = require('./Docx/Validator');
+const Differ = require('./Docx/Differ');
+
+const TYPE = [ '-t', '--type' ];
+const OUTPUT = [ '-o', '--output' ];
+const VERBOSE = [ '-v', '--verbose' ];
+const HELP = [ '-h', '--help' ];
 
 const ACTION = {
     DEBUG: 'debug',
@@ -14,55 +22,94 @@ const args = process.argv.slice(2);
 if (args.length === 0)
     return console.error(`One of the following .docx actions must be provided:\n${Object.values(ACTION).map(action => `- ${action}`).join('\n')}`);
 
-async function validate (filePath, { verbose }) {
-    const file = fs.readFileSync(filePath);
+const isDocx = filePath => {
+    if (!fs.existsSync(filePath))
+        return console.error(`${filePath} is not a file or directory.`);
+
+    const file = fs.statSync(filePath);
+    if (!file.isFile())
+        return console.error(`${filePath} is not a file.`);
 
     const fileExtension = filePath.substring(filePath.lastIndexOf('.'));
     if (fileExtension.toLowerCase() !== '.docx')
-        return console.error(`${filePath} is not a .docx.`);
+        return console.error(`${filePath} is not a .docx`);
 
-    const errors = await Validator.validate(file, { verbose });
-    errors.length === 0 ?
-        console.info('No errors found.') :
-        errors.forEach(Validator.log);
-}
+    return true;
+};
 
 const action = args.shift();
 switch (action) {
     case ACTION.DEBUG:
-    case ACTION.DIFF:
         return console.error(`${action} is an unimplemented .docx action.`);
+        // Formatter
     case ACTION.VALIDATE: {
+        if (args.find(arg => HELP.includes(arg)))
+            return console.error(ml`
+                -v, --verbose   | Providing this argument will log each step of the validation
+            `);
+
         if (args.length === 0)
             return console.error('A path to the file to validate must be provided.');
 
-        let filePath,
-            verbose;
+        const filePath = args.shift();
 
-        if (args.length === 1) {
-            filePath = args[0];
-        } else {
-            filePath = args[0];
-            const VERBOSE = [
-                '-v',
-                '--verbose',
-            ];
-            verbose = !!args.find(arg => VERBOSE.includes(arg));
+        let verbose;
+        while (args.length > 0) {
+            const arg = args.shift();
+            if (VERBOSE.includes(arg)) {
+                verbose = true;
+            } else {
+                return console.error(`${arg} is an unknown argument.`);
+            }
         }
 
-        validate(filePath, { verbose })
-            .catch(error => {
-                switch (error.code) {
-                    case 'ENOENT':
-                        console.error(`${filePath} is not a file or directory.`);
-                        break;
-                    case 'EISDIR':
-                        console.error(`${filePath} is not a file.`);
-                        break;
-                    default:
-                        throw error;
-                }
-            });
+        if (!isDocx(filePath))
+            return;
+
+        Validator.validate(fs.readFileSync(filePath), { verbose })
+            .then(errors => errors.length === 0 ?
+                console.info('No errors found.') :
+                errors.forEach(Validator.log));
+        break;
+    }
+    case ACTION.DIFF: {
+        if (args.find(arg => HELP.includes(arg)))
+            return console.error(ml`
+                -t, --type      | Default diff type is 'directory' but may also diff each 'file'
+                -o, --output    | Default output is 'console' but may also be output as 'json'
+                -v, --verbose   | Providing this argument will log each step of the diff
+            `);
+
+        if (args.length < 2)
+            return console.error('Two .docx file paths are required as arguments.');
+
+        const oldFilePath = args.shift();
+        const newFilePath = args.shift();
+
+        let type, output, verbose;
+        while (args.length > 0) {
+            const arg = args.shift();
+
+            if (TYPE.includes(arg)) {
+                type = args.shift();
+            } else if (OUTPUT.includes(arg)) {
+                output = args.shift();
+            } else if (VERBOSE.includes(arg)) {
+                verbose = true;
+            } else {
+                return console.error(`${arg} is an unknown argument.`);
+            }
+        }
+
+        const filePaths = [ oldFilePath, newFilePath ];
+
+        if (!filePaths.every(isDocx))
+            return;
+
+        const [ oldFile, newFile ] = filePaths
+            .map(filePath => fs.readFileSync(filePath));
+
+        Differ.diff(oldFile, newFile, { type, output, verbose });
         break;
     }
     default:

@@ -3,7 +3,7 @@ Debug, validate and diff .docx files.
 
 * Debug a .docx file by copying its contents into an unzipped folder of formatted XML.
 * Validate a .docx file.
-* Diff two .docx files by file or by line within each file.
+* Get the diff of two .docx files; to both identify added or removed files as well as added or remove lines within each file.
 
 ## Installation
 
