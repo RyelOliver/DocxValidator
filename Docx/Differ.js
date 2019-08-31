@@ -4,16 +4,18 @@ const Zip = require('../Zip');
 const XML = require('../XML');
 const Diff = require('../Diff');
 
-const Type = {
-    directory: 'directory',
-    file: 'file',
+const TYPE = {
+    DIRECTORY: 'directory',
+    FILE: 'file',
 
-    json: 'json',
-    print: 'print',
+    JSON: 'json',
+    LOG: 'log',
 
-    delete: 'delete',
-    insert: 'insert',
+    DELETE: 'delete',
+    INSERT: 'insert',
 };
+
+let _verbose = false;
 
 const outputChanges = changes => {
     const output = changes
@@ -35,7 +37,7 @@ const outputChanges = changes => {
         }, [])
         .map(({ filePath, changes }) => {
             const chunks = changes
-                .filter(({ type }) => type === Type.file)
+                .filter(({ type }) => type === TYPE.FILE)
                 .reduce((chunks, change) => {
                     const chunk = chunks.find(chunk => {
                         return chunk.lineNumber === change.lineNumber;
@@ -167,11 +169,14 @@ const outputChanges = changes => {
 };
 
 const getFilePathChanges = async ({ oldZip, newZip, oldFilePaths, newFilePaths }) => {
+    if (_verbose)
+        print('Getting file path changes...');
+
     const changes = [];
 
     oldFilePaths.forEach(filePath => {
         if (!newFilePaths.includes(filePath))
-            changes.push({ delete: true, filePath, type: Type.directory });
+            changes.push({ delete: true, filePath, type: TYPE.DIRECTORY });
     });
 
     const deletedFilePaths = changes
@@ -181,7 +186,7 @@ const getFilePathChanges = async ({ oldZip, newZip, oldFilePaths, newFilePaths }
 
     newFilePaths.forEach(filePath => {
         if (!oldFilePaths.includes(filePath))
-            changes.push({ insert: true, filePath, type: Type.directory });
+            changes.push({ insert: true, filePath, type: TYPE.DIRECTORY });
     });
 
     await forEach(unmodifiedFilePaths, async filePath => {
@@ -189,7 +194,7 @@ const getFilePathChanges = async ({ oldZip, newZip, oldFilePaths, newFilePaths }
         const newFile = XML.format(await newZip.read(filePath));
 
         if (oldFile !== newFile)
-            changes.push({ modified: true, filePath, type: Type.directory });
+            changes.push({ modified: true, filePath, type: TYPE.DIRECTORY });
     });
 
     return changes;
@@ -198,26 +203,40 @@ const getFilePathChanges = async ({ oldZip, newZip, oldFilePaths, newFilePaths }
 const forEach = (array, callback) => Promise.all(array.map(callback));
 
 const getFileContentChanges = async ({ oldZip, newZip, filePaths }) => {
+    if (_verbose)
+        print('Getting file content changes...');
+
     const changes = [];
 
     await forEach(filePaths, async filePath => {
+        if (_verbose)
+            print(`Reading ${filePath}...`);
+
         const oldFile = XML.format(await oldZip.read(filePath));
         const newFile = XML.format(await newZip.read(filePath));
 
         const oldLines = oldFile.split('\n');
         const newLines = newFile.split('\n');
 
+        if (_verbose)
+            print(`Diffing ${filePath}...`);
+
         const fileChanges = Diff.lines({ oldLines, newLines })
-            .map(change => ({ ...change, filePath, type: Type.file }));
+            .map(change => ({ ...change, filePath, type: TYPE.FILE }));
         changes.push(...fileChanges);
     });
 
     return changes;
 };
 
-const diff = async (oldFile, newFile, { type = Type.file, output = Type.print } = {}) => {
+const diff = async (oldFile, newFile, { type = TYPE.FILE, output = TYPE.LOG, verbose } = {}) => {
+    _verbose = verbose;
+
     if (!Buffer.compare(oldFile, newFile))
         return print('The two .docx files are identical.');
+
+    if (_verbose)
+        print('Unzipping files...');
 
     const [ oldZip, newZip ] = await Promise.all(
         [ oldFile, newFile ]
@@ -229,7 +248,7 @@ const diff = async (oldFile, newFile, { type = Type.file, output = Type.print } 
 
     const changes = [];
     switch (type) {
-        case Type.directory:
+        case TYPE.DIRECTORY:
             changes.push(...await getFilePathChanges({
                 oldZip, newZip, oldFilePaths, newFilePaths,
             }));
@@ -247,7 +266,7 @@ const diff = async (oldFile, newFile, { type = Type.file, output = Type.print } 
     }
 
     switch (output) {
-        case Type.json:
+        case TYPE.JSON:
             return changes;
         default:
             return outputChanges(changes);

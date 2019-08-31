@@ -29,10 +29,10 @@ describe('Differ', () => {
         await Differ.diff(oldFile, newFile, { type: 'directory' });
 
         expect(info).toHaveBeenCalledWith(
-            STYLE.GREEN, 'The word/comments.xml file was added',
+            STYLE.GREEN, 'added           word/comments.xml',
         );
         expect(info).toHaveBeenCalledWith(
-            STYLE.YELLOW, 'The word/settings.xml file was modified',
+            STYLE.YELLOW, 'modified        word/settings.xml',
         );
 
         info.mockRestore();
