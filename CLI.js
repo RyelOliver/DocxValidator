@@ -4,7 +4,7 @@ const fs = require('fs');
 const { print } = require('./Utility');
 const { TYPE: { ERROR } } = print;
 const ml = require('./Multiline');
-// const Formatter = require('./Docx/Formatter');
+const Debugger = require('./Docx/Debugger');
 const Validator = require('./Docx/Validator');
 const Differ = require('./Docx/Differ');
 
@@ -41,9 +41,33 @@ const isDocx = filePath => {
 
 const action = args.shift();
 switch (action) {
-    case ACTION.DEBUG:
-        return print(`${action} is an unimplemented .docx action.`, { type: ERROR });
-        // Formatter
+    case ACTION.DEBUG: {
+        if (args.find(arg => HELP.includes(arg)))
+            return print(ml`
+                -v, --verbose   | Providing this argument will log each step
+            `, { type: ERROR });
+
+        if (args.length === 0)
+            return print('A path to the file to debug must be provided.', { type: ERROR });
+
+        const filePath = args.shift();
+
+        let verbose;
+        while (args.length > 0) {
+            const arg = args.shift();
+            if (VERBOSE.includes(arg)) {
+                verbose = true;
+            } else {
+                return print(`${arg} is an unknown argument.`, { type: ERROR });
+            }
+        }
+
+        if (!isDocx(filePath))
+            return;
+
+        Debugger.debug(filePath, { verbose });
+        break;
+    }
     case ACTION.VALIDATE: {
         if (args.find(arg => HELP.includes(arg)))
             return print(ml`
