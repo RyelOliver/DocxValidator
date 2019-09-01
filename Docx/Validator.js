@@ -54,26 +54,31 @@ async function validateContentTypes (zip) {
         log({ type: TYPE.INFO, description: 'Validating [Content_Types].xml...' });
 
     const errors = [];
-    const fileName = '[Content_Types].xml';
 
-    const xml = await zip.read(fileName);
-    const document = XML.parse(XML.format(xml));
+    const fileName = zip.files.find(fileName => fileName === '[Content_Types].xml');
 
-    const overrides = within(document).getAll('/Types/Override');
-    const missingPartNames = overrides.filter(override => {
-        let partName = override.getAttribute('PartName');
+    if (!fileName) {
+        errors.push(ValidationError({ description: '[Content_Types].xml is required.', fileName: '[Content_Types].xml' }));
+    } else {
+        const xml = await zip.read(fileName);
+        const document = XML.parse(XML.format(xml));
 
-        if (partName.match(/^\/(.*)/))
-            partName = partName.match(/^\/(.*)/)[1];
+        const overrides = within(document).getAll('/Types/Override');
+        const missingPartNames = overrides.filter(override => {
+            let partName = override.getAttribute('PartName');
 
-        return !zip.files.includes(partName);
-    });
+            if (partName.match(/^\/(.*)/))
+                partName = partName.match(/^\/(.*)/)[1];
 
-    missingPartNames
-        .forEach(partName => {
-            const { lineNumber, columnNumber } = partName;
-            errors.push(ValidationError({ description: '<Override/> requires a PartName attribute that references a file.', fileName, lineNumber, columnNumber }));
+            return !zip.files.includes(partName);
         });
+
+        missingPartNames
+            .forEach(partName => {
+                const { lineNumber, columnNumber } = partName;
+                errors.push(ValidationError({ description: '<Override/> requires a PartName attribute that references a file.', fileName, lineNumber, columnNumber }));
+            });
+    }
 
     return errors;
 }
@@ -186,7 +191,7 @@ async function validateDocument (zip) {
         .find(fileName => [ 'word/document.xml', 'word/document22.xml' ].includes(fileName));
 
     if (!fileName) {
-        errors.push(ValidationError({ description: 'word/document.xml is required.' }));
+        errors.push(ValidationError({ description: 'word/document.xml is required.', fileName: 'word/document.xml' }));
     } else {
         const xml = await zip.read(fileName);
         const document = XML.parse(XML.format(xml));
@@ -357,9 +362,7 @@ function log ({ type, description, fileName, lineNumber, columnNumber }) {
     print(description, { type, style });
 }
 
-const DocxValidator = {
+module.exports = {
     validate,
     log,
 };
-
-module.exports = DocxValidator;
